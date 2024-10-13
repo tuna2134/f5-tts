@@ -30,8 +30,7 @@ def main() -> None:
     vocos.forward = forward
 
     dummy_input = torch.randn(512, 100, 7)
-    prg = torch.onnx.dynamo_export(vocos, dummy_input)
-    prg.save(args.output_path)
+    torch.onnx.export(vocos, dummy_input, args.output_path)
 
 
 if __name__ == "__main__":
