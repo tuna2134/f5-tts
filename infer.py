@@ -40,29 +40,31 @@ vocab_char_map, vocab_size = get_tokenizer()
 
 def main() -> None:
     parser = ArgumentParser(
-        name="Inference",
+        prog="Inference",
         description="推論します。",
     )
     parser.add_argument(
-        "text",
+        "--ref_text",
         type=str,
+        default="水をマレーシアから買わなくてはならないのです。",
+        help="テキスト",
+    )
+    parser.add_argument(
+        "--gen_text",
+        type=str,
+        default="明日の天気は、きっと晴れになるでしょう。",
         help="テキスト",
     )
     parser.add_argument(
         "--checkpoint_path",
         type=str,
-        required=True,
         help="モデルのパス",
+        default="ckpts/f5tts_jp/model_last.pt",
     )
     parser.add_argument(
         "--cpu",
         action="store_true",
         help="CPUで推論します。",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="output",
     )
     parser.add_argument(
         "--use_ema",
@@ -109,7 +111,8 @@ def main() -> None:
         model.load_state_dict(checkpoint["model_state_dict"])
 
     start = time.time()
-    texts, _ = text_to_sequence(args.text)
+    ref_codes = text_to_sequence(args.ref_text)[0]
+    gen_codes = text_to_sequence(args.gen_text)[0]
     audio, sr = torchaudio.load("test.wav")
     rms = torch.sqrt(torch.mean(torch.square(audio)))
     if rms < target_rms:
@@ -120,25 +123,22 @@ def main() -> None:
     audio = audio.to(device)
     ref_audio_len = audio.shape[-1] // hop_length
     duration = ref_audio_len + int(
-        ref_audio_len
-        / len(text_to_sequence(ref_text)[0])
-        * len(text_to_sequence(gen_text)[0])
-        / speed
-        * 1.2
+        ref_audio_len / len(ref_codes) * len(gen_codes) / speed * 1.2
     )
 
     # Inference
     with torch.inference_mode():
         generated, _ = model.sample(
             cond=audio,
-            text=[texts],
+            text=torch.tensor([*ref_codes, *gen_codes], dtype=torch.long)
+            .unsqueeze(0)
+            .to(device),
             duration=duration,
             steps=32,
             cfg_strength=cfg_strength,
             sway_sampling_coef=-1.0,
             seed=114514,
         )
-
 
     generated = generated[:, ref_audio_len:, :]
     generated_mel_spec = rearrange(generated, "1 n d -> 1 d n")
@@ -149,6 +149,7 @@ def main() -> None:
     save_spectrogram(generated_mel_spec[0].cpu().numpy(), f"output.png")
     torchaudio.save(f"output.wav", generated_wave, target_sample_rate)
     print(f"Generated wav: {generated_wave.shape}")
+    print(f"Took: {time.time() - start:.2f}s")
 
 
 if __name__ == "__main__":

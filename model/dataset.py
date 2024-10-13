@@ -10,6 +10,7 @@ from datasets import load_dataset as hf_load_dataset
 from einops import rearrange
 
 from model.modules import MelSpec
+from text import text_to_sequence
 
 
 class HFDataset(Dataset):
@@ -68,7 +69,7 @@ class HFDataset(Dataset):
 
         mel_spec = rearrange(mel_spec, "1 d t -> d t")
 
-        text = row[self.text]
+        text = torch.tensor(text_to_sequence(row[self.text])[0], dtype=torch.long)
 
         return dict(
             mel_spec=mel_spec,
@@ -183,7 +184,8 @@ def collate_fn(batch):
     mel_specs = torch.stack(padded_mel_specs)
 
     text = [item["text"] for item in batch]
-    text_lengths = torch.LongTensor([len(item) for item in text])
+    text_lengths = torch.tensor([len(item) for item in text], dtype=torch.long)
+    text = torch.nn.utils.rnn.pad_sequence(text, batch_first=True, padding_value=0)
     return dict(
         mel=mel_specs,
         mel_lengths=mel_lengths,
