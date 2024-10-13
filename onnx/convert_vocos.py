@@ -2,11 +2,11 @@ from argparse import ArgumentParser
 
 from vocos import Vocos
 from torch import nn
+import torch
 
 
 def main() -> None:
     parser = ArgumentParser(
-        name="Convert vocos to onnx",
         description="VocosをONNXに変換します。",
     )
     parser.add_argument(
@@ -22,14 +22,16 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    def forward(self, x):
-        return self.decode(x)
-
     vocos = Vocos.from_pretrained(args.model_name)
+
+    def forward(x):
+        return vocos.decode(x)
+
     vocos.forward = forward
 
-    dummy_input = torch.randn(1, 80, 100)
-    torch.onnx.export(vocos, dummy_input, args.output_path, verbose=True)
+    dummy_input = torch.randn(512, 100, 7)
+    prg = torch.onnx.dynamo_export(vocos, dummy_input)
+    prg.save(args.output_path)
 
 
 if __name__ == "__main__":
