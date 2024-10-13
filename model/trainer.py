@@ -187,10 +187,8 @@ class Trainer:
                 train_dataset,
                 collate_fn=collate_fn,
                 num_workers=num_workers,
-                pin_memory=True,
+                pin_memory=False,
                 batch_size=self.batch_size,
-                shuffle=True,
-                generator=generator,
             )
         elif self.batch_size_type == "frame":
             self.accelerator.even_batches = False
@@ -206,7 +204,7 @@ class Trainer:
                 train_dataset,
                 collate_fn=collate_fn,
                 num_workers=num_workers,
-                pin_memory=True,
+                pin_memory=False,
                 batch_sampler=batch_sampler,
             )
         else:
@@ -325,4 +323,5 @@ class Trainer:
                     self.save_checkpoint(global_step, last=True)
                 torch.cuda.empty_cache()
 
+        self.save_checkpoint(global_step, last=True)
         self.accelerator.end_training()
