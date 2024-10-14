@@ -30,8 +30,9 @@ def main() -> None:
     vocos.forward = forward
 
     dummy_input = torch.randn(512, 100, 7)
-    exporter = torch.onnx.dynamo_export(vocos, dummy_input)
-    exporter.export(args.output_path)
+    # exporter = torch.onnx.dynamo_export(vocos, dummy_input)
+    # exporter.export(args.output_path)
+    torch.onnx.export(vocos, dummy_input, args.output_path, verbose=True, dynamo=True, report=True)
 
 
 if __name__ == "__main__":
